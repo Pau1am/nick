@@ -2,19 +2,17 @@ package com.dongchengqiao.nick.mixin;
 
 import com.dongchengqiao.nick.NickClientConfig;
 import com.dongchengqiao.nick.NickClientConfig.DisplayLocation;
-import com.dongchengqiao.nick.NickClientConfig.DisplayMode;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.protocol.game.ClientboundPlayerChatPacket;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -24,12 +22,17 @@ import java.util.UUID;
 
 @Mixin(ClientPacketListener.class)
 public class NickClientChatMixin {
-	private UUID nickClientChatSenderUUID;
+	@Unique
+	private UUID nick$chatSender;
 
 	@Inject(method = "handlePlayerChat", at = @At("HEAD"))
-	private void captureChatSender(ClientboundPlayerChatPacket packet, CallbackInfo ci) {
-		DisplayMode mode = NickClientConfig.getDisplayMode(DisplayLocation.CHAT);
-		nickClientChatSenderUUID = (mode == DisplayMode.DEFAULT) ? null : packet.sender();
+	private void nick$captureChatSender(ClientboundPlayerChatPacket packet, CallbackInfo ci) {
+		this.nick$chatSender = packet.sender();
+	}
+
+	@Inject(method = "handlePlayerChat", at = @At("RETURN"))
+	private void nick$clearChatSender(ClientboundPlayerChatPacket packet, CallbackInfo ci) {
+		this.nick$chatSender = null;
 	}
 
 	@ModifyArg(
@@ -40,70 +43,46 @@ public class NickClientChatMixin {
 		),
 		index = 2
 	)
-	private ChatType.Bound modifyChatBound(ChatType.Bound bound) {
-		UUID uuid = nickClientChatSenderUUID;
+	private ChatType.Bound nick$modifyChatBound(ChatType.Bound bound) {
+		UUID uuid = this.nick$chatSender;
 		if (uuid == null) return bound;
 
-		PlayerInfo info = ((ClientPacketListener)(Object)this).getPlayerInfo(uuid);
+		PlayerInfo info = ((ClientPacketListener) (Object) this).getPlayerInfo(uuid);
 		if (info == null) return bound;
 
 		String originalName = info.getProfile().name();
-		DisplayMode mode = NickClientConfig.getDisplayMode(DisplayLocation.CHAT);
 		Component displayName;
-
-		switch (mode) {
-			case HIDE:
-				displayName = Component.literal(originalName);
-				break;
-			case NICK_ONLY: {
-				String nickname = findNicknameByPlayerInfo(info);
+		switch (NickClientConfig.getDisplayMode(DisplayLocation.CHAT)) {
+			case HIDE -> displayName = Component.literal(originalName);
+			case NICK_ONLY -> {
+				String nickname = nick$findNickname(uuid);
 				if (nickname == null) return bound;
 				displayName = Component.literal(nickname);
-				break;
 			}
-			case NICK_AND_ORIGINAL: {
-				String nickname = findNicknameByPlayerInfo(info);
+			case NICK_AND_ORIGINAL -> {
+				String nickname = nick$findNickname(uuid);
 				if (nickname == null) return bound;
 				displayName = Component.literal("[" + nickname + "]" + originalName);
-				break;
 			}
-			default:
+			default -> {
 				return bound;
+			}
 		}
 
-		PlayerTeam team = getTeamForPlayer(originalName);
-		return new ChatType.Bound(bound.chatType(), formatWithTeam(team, displayName), bound.targetName());
+		PlayerTeam team = nick$getTeamForPlayer(originalName);
+		return new ChatType.Bound(
+			bound.chatType(),
+			PlayerTeam.formatNameForTeam(team, displayName),
+			bound.targetName()
+		);
 	}
 
-	@Inject(method = "handlePlayerChat", at = @At("RETURN"))
-	private void cleanupChat(CallbackInfo ci) {
-		nickClientChatSenderUUID = null;
-	}
-
-	private static Component formatWithTeam(PlayerTeam team, Component name) {
-		if (team == null) return name;
-		MutableComponent result = Component.empty();
-		Component prefix = team.getPlayerPrefix();
-		if (prefix != null) {
-			result.append(prefix);
-		}
-		if (team.getColor() != ChatFormatting.RESET) {
-			result.append(name.copy().withStyle(team.getColor()));
-		} else {
-			result.append(name);
-		}
-		Component suffix = team.getPlayerSuffix();
-		if (suffix != null) {
-			result.append(suffix);
-		}
-		return result;
-	}
-
-	private static String findNicknameByPlayerInfo(PlayerInfo info) {
+	@Unique
+	private static String nick$findNickname(UUID uuid) {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.level == null) return null;
 		for (Player player : mc.level.players()) {
-			if (player.getUUID().equals(info.getProfile().id())) {
+			if (player.getUUID().equals(uuid)) {
 				Component customName = player.getCustomName();
 				return customName != null ? customName.getString() : null;
 			}
@@ -111,7 +90,8 @@ public class NickClientChatMixin {
 		return null;
 	}
 
-	private static PlayerTeam getTeamForPlayer(String playerName) {
+	@Unique
+	private static PlayerTeam nick$getTeamForPlayer(String playerName) {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.level == null) return null;
 		Scoreboard scoreboard = mc.level.getScoreboard();

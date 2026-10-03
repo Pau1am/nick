@@ -1,14 +1,15 @@
 package com.dongchengqiao.nick.mixin;
 
+import com.dongchengqiao.nick.NickDisplay;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.OutgoingChatMessage;
 import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
-import net.minecraft.world.scores.PlayerTeam;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -21,46 +22,56 @@ import java.util.function.Predicate;
 @Mixin(PlayerList.class)
 public class PlayerListMixin {
 	@Shadow
+	@Final
 	private List<ServerPlayer> players;
 
-	private static final ThreadLocal<ServerPlayer> CURRENT_SENDER = new ThreadLocal<>();
+	/**
+	 * The sender of the message currently being broadcast. It is written at the head of the
+	 * broadcast method and only read by the injection below, which can never run before that
+	 * write, so a plain field is enough - no ThreadLocal needed.
+	 */
+	@Unique
+	private static ServerPlayer nick$currentSender;
 
 	@Inject(method = "getPlayerByName", at = @At("TAIL"), cancellable = true)
-	private void onGetPlayerByName(String name, CallbackInfoReturnable<ServerPlayer> cir) {
-		if (cir.getReturnValue() == null) {
-			for (ServerPlayer player : players) {
-				Component customName = player.getCustomName();
-				if (customName != null && customName.getString().equals(name)) {
-					cir.setReturnValue(player);
-					return;
-				}
+	private void nick$getPlayerByName(String name, CallbackInfoReturnable<ServerPlayer> cir) {
+		if (cir.getReturnValue() != null) {
+			return;
+		}
+		// Real names always win; only fall back to nicknames. Case-insensitive, like vanilla.
+		for (ServerPlayer player : this.players) {
+			Component customName = player.getCustomName();
+			if (customName != null && customName.getString().equalsIgnoreCase(name)) {
+				cir.setReturnValue(player);
+				return;
 			}
 		}
 	}
 
 	@Inject(method = "getPlayerNamesArray", at = @At("HEAD"), cancellable = true)
-	private void onGetPlayerNamesArray(CallbackInfoReturnable<String[]> cir) {
-		String[] result = new String[players.size()];
-		for (int i = 0; i < players.size(); i++) {
-			ServerPlayer player = players.get(i);
+	private void nick$getPlayerNamesArray(CallbackInfoReturnable<String[]> cir) {
+		String[] names = new String[this.players.size()];
+		for (int i = 0; i < this.players.size(); i++) {
+			ServerPlayer player = this.players.get(i);
 			Component customName = player.getCustomName();
-			if (customName != null) {
-				result[i] = customName.getString();
-			} else {
-				result[i] = player.getScoreboardName();
-			}
+			names[i] = customName != null ? customName.getString() : player.getGameProfile().name();
 		}
-		cir.setReturnValue(result);
+		cir.setReturnValue(names);
 	}
 
 	@Inject(
 		method = "broadcastChatMessage(Lnet/minecraft/network/chat/PlayerChatMessage;Ljava/util/function/Predicate;Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/network/chat/ChatType$Bound;)V",
 		at = @At("HEAD")
 	)
-	private void captureSender(PlayerChatMessage message, Predicate<ServerPlayer> predicate, ServerPlayer sender, ChatType.Bound bound, CallbackInfo ci) {
-		CURRENT_SENDER.set(sender);
+	private void nick$captureSender(PlayerChatMessage message, Predicate<ServerPlayer> isFiltered,
+									ServerPlayer sender, ChatType.Bound bound, CallbackInfo ci) {
+		nick$currentSender = sender;
 	}
 
+	/**
+	 * Vanilla builds the chat bound from {@code Player#getDisplayName()}, which resolves
+	 * {@code Player#getName()} - the real name - so it ignores the custom name.
+	 */
 	@ModifyArg(
 		method = "broadcastChatMessage(Lnet/minecraft/network/chat/PlayerChatMessage;Ljava/util/function/Predicate;Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/network/chat/ChatType$Bound;)V",
 		at = @At(
@@ -69,23 +80,15 @@ public class PlayerListMixin {
 		),
 		index = 2
 	)
-	private ChatType.Bound modifyBoundForPlayer(ChatType.Bound bound) {
-		ServerPlayer sender = CURRENT_SENDER.get();
-		if (sender != null) {
-			Component customName = sender.getCustomName();
-			if (customName != null) {
-				Component formatted = PlayerTeam.formatNameForTeam(sender.getTeam(), customName);
-				return new ChatType.Bound(bound.chatType(), formatted, bound.targetName());
-			}
+	private ChatType.Bound nick$modifyBound(ChatType.Bound bound) {
+		ServerPlayer sender = nick$currentSender;
+		if (sender == null) {
+			return bound;
 		}
-		return bound;
-	}
-
-	@Inject(
-		method = "broadcastChatMessage(Lnet/minecraft/network/chat/PlayerChatMessage;Ljava/util/function/Predicate;Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/network/chat/ChatType$Bound;)V",
-		at = @At("RETURN")
-	)
-	private void cleanupSender(CallbackInfo ci) {
-		CURRENT_SENDER.remove();
+		Component customName = sender.getCustomName();
+		if (customName == null) {
+			return bound;
+		}
+		return new ChatType.Bound(bound.chatType(), NickDisplay.decorate(sender, customName), bound.targetName());
 	}
 }

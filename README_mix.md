@@ -14,32 +14,26 @@ A Fabric server-side mod that allows players to change their display name (nickn
 
 ## 命令 / Commands
 
+> `/nick` 需要开启 Carpet 规则 `commandNick`（默认关闭）：`/carpet commandNick true`
+> `/nick` requires the Carpet rule `commandNick` (off by default): `/carpet commandNick true`
+
 ### 设置昵称 / Set Nickname
 
 | 命令 / Command                              | 权限 / Permission | 说明 / Description                             |
 | ------------------------------------------- | ----------------- | ---------------------------------------------- |
 | `/nick set <昵称/nickname>`               | 所有人 Everyone   | 设置自己的昵称 Set your own nickname           |
-| `/nick set <目标/target> <昵称/nickname>` | OP                | 设置他人的昵称 Set another player's nickname   |
+| `/nick set <昵称/nickname> <目标/target>` | OP                | 设置他人的昵称 Set another player's nickname   |
 | `/nick reset`                             | 所有人 Everyone   | 重置自己的昵称 Reset your own nickname         |
 | `/nick reset <目标/target>`               | OP                | 重置他人的昵称 Reset another player's nickname |
 
-`<目标/target>` 支持玩家名、`@p`、`@a`、`@r`、`@s` 等选择器。Supports player names and selectors.
+`<目标/target>` 支持玩家名、`@p`、`@a`、`@r`、`@s` 等选择器，也支持昵称。Supports player names, selectors and nicknames.
 
-### 昵称查找 / Nickname Lookup
+### 昵称规则 / Nickname Rules
 
-设置昵称后，所有命令皆可用昵称替代玩家名。Once a nickname is set, all commands can use the nickname in place of the player name:
-
-- `/tp 小明` `/tp Xiaoming`
-- `/msg 小明` `/msg Xiaoming`
-- `/kick 小明` `/kick Xiaoming`
-
-**注意 Note**：若昵称与真实玩家名同时存在，玩家名优先匹配。If a nickname and a real player name are identical, the real name takes priority.
-
-### 昵称格式 / Nickname Format
-
-- 单个词直接写 Single word: `/nick set 小明`
-- 带空格的昵称用引号 Nickname with spaces, use quotes: `/nick set "小明 同学"`
-- 会显示队伍的团队颜色、前缀和后缀 Displays team color, prefix, and suffix when applicable
+- 最多 32 个字符 At most 32 characters
+- 不能与其他在线玩家的游戏名相同 Must not match another online player's game name
+- 不能与其他玩家已用的昵称重复 Must not duplicate another player's nickname
+- 不能包含 `§` 或控制字符 Must not contain `§` or control characters
 
 ---
 
@@ -50,10 +44,9 @@ A Fabric server-side mod that allows players to change their display name (nickn
 | 聊天消息显示昵称 Chat messages display nickname                                                                                    | ✅          |
 | Tab 列表显示昵称（所有客户端，无需模组）Tab list displays nickname (all clients, no mod required)                                  | ✅          |
 | 头顶名签显示昵称（单人模式/需客户端装模组）Name tag shows nickname (singleplayer / requires client mod on server)                  | ✅          |
-| 每位置客户端显示模式（默认/仅昵称/昵称+原名/隐藏）Per-location client display modes (default/nickname only/nickname+original/hide) | ✅          |
+| 每位置客户端显示模式（仅昵称/昵称+原名/隐藏）Per-location client display modes (nickname only/nickname+original/hide)                | ✅          |
 | 团队颜色生效 Team colors apply                                                                                                     | ✅          |
 | 昵称查找玩家 Lookup players by nickname                                                                                            | ✅          |
-| 服务端日志显示原 MCID 以适配 MCDR Server logs show original MCID for MCDR                                                          | ✅          |
 
 ---
 
@@ -61,7 +54,7 @@ A Fabric server-side mod that allows players to change their display name (nickn
 
 ### 服务端 / Server
 
-1. 将 `nick-*.jar` 放入 `mods/` 目录 Place `nick-*.jar` into the `mods/` directory
+1. 将 `nick-*.jar` 放入 `mods/` 目录（需要 Fabric API 和 Carpet）Place `nick-*.jar` into the `mods/` directory (Fabric API and Carpet required)
 2. 重启服务器 Restart the server
 
 ### 客户端（可选）/ Client (Optional)
@@ -70,28 +63,19 @@ A Fabric server-side mod that allows players to change their display name (nickn
 
 When installed on the client, name tags display nicknames in server mode, and the per-location client configuration screen is available. Without the mod, chat and tab list still work.
 
+客户端配置界面需要 [Cloth Config](https://modrinth.com/mod/cloth-config)，不装则只是没有图形界面。The config screen needs Cloth Config; without it the mod still works, just without a GUI.
+
 ---
 
 ## 客户端配置 / Client Configuration
 
-自动生成 `config/nick-client.json`，支持层级配置：全局默认模式 + 每位置覆盖。Auto-generated, supports hierarchical config: global default + per-location overrides.
-
-### 显示模式 / Display Modes
+自动生成 `config/nick-client.json`，支持全局默认模式 + 每位置覆盖（头顶 / 聊天 / Tab 列表）。Auto-generated, global default + per-location overrides (nametag / chat / tab list).
 
 | 值 Value                | 效果 Effect                                     | 示例 Example         |
 | ----------------------- | ----------------------------------------------- | -------------------- |
 | `"nick_only"`         | 仅显示昵称（默认）Show nickname only            | `Xiao Ming`        |
 | `"nick_and_original"` | 昵称+原名 Nickname + original                   | `[Xiao Ming]zxdnb` |
 | `"hide"`              | 隐藏昵称，显示原名 Hide nickname, show original | `zxdnb`            |
-
-### 位置 / Locations
-
-| 位置 Location       | 作用 Effect                    |
-| ------------------- | ------------------------------ |
-| `NAMETAG`         | 头顶名签 Overhead name tag     |
-| `CHAT`            | 聊天发送者 Chat sender display |
-| `TARGET_SELECTOR` | 选择器 Selector display        |
-| `TAB_LIST`        | Tab 列表 Tab list entry        |
 
 ---
 
@@ -106,11 +90,14 @@ When installed on the client, name tags display nicknames in server mode, and th
 }
 ```
 
+键是游戏名（不是昵称）。写入采用临时文件 + 原子替换，避免写坏配置。
+Keys are game names (not nicknames); the file is replaced atomically to avoid corruption.
+
 ---
 
 ## 技术信息 / Technical Info
 
-- Minecraft 版本 Version: 26.1
-- 框架 Framework: Fabric Loader 0.19.2 / Fabric API 0.149.0+26.1.2
+- Minecraft 版本 Version: 26.3
+- 框架 Framework: Fabric Loader 0.19.5 / Fabric API 0.161.0+26.3
 - Maven 组 Group: `com.dongchengqiao.nick`
 - 主类 Main class: `com.dongchengqiao.nick.Nick`

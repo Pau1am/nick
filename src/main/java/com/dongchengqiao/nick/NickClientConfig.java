@@ -2,15 +2,20 @@ package com.dongchengqiao.nick;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.fabricmc.loader.api.FabricLoader;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/** Client-only settings: how a nickname is shown per display location. */
 public class NickClientConfig {
 	public enum DisplayMode {
+		/** "Follow whatever the default mode is" - only valid as a per-location override. */
 		DEFAULT("default"),
 		NICK_ONLY("nick_only"),
 		NICK_AND_ORIGINAL("nick_and_original"),
@@ -73,30 +78,41 @@ public class NickClientConfig {
 		}
 	}
 
-	private static final Path CONFIG_PATH = Path.of("config/nick-client.json");
-	private static DisplayMode defaultMode = DisplayMode.NICK_ONLY;
-	private static final Map<DisplayLocation, DisplayMode> overrides = new LinkedHashMap<>();
+	private static final String DEFAULT_KEY = "default";
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+	private static final Map<DisplayLocation, DisplayMode> overrides = new LinkedHashMap<>();
+	private static DisplayMode defaultMode = DisplayMode.NICK_ONLY;
+
+	private NickClientConfig() {
+	}
+
+	private static Path path() {
+		return FabricLoader.getInstance().getConfigDir().resolve("nick-client.json");
+	}
 
 	public static void load() {
+		Path path = path();
+		if (!Files.exists(path)) {
+			save();
+			return;
+		}
 		try {
-			if (Files.exists(CONFIG_PATH)) {
-				JsonObject obj = GSON.fromJson(Files.readString(CONFIG_PATH), JsonObject.class);
-				if (obj != null) {
-					if (obj.has("default")) {
-						defaultMode = DisplayMode.fromKey(obj.get("default").getAsString());
-					}
-					for (DisplayLocation loc : DisplayLocation.values()) {
-						if (obj.has(loc.getKey())) {
-							overrides.put(loc, DisplayMode.fromKey(obj.get(loc.getKey()).getAsString()));
-						}
-					}
+			JsonObject root = GSON.fromJson(Files.readString(path, StandardCharsets.UTF_8), JsonObject.class);
+			if (root == null) {
+				return;
+			}
+			JsonElement fallback = root.get(DEFAULT_KEY);
+			if (fallback != null && fallback.isJsonPrimitive()) {
+				defaultMode = DisplayMode.fromKey(fallback.getAsString());
+			}
+			for (DisplayLocation location : DisplayLocation.values()) {
+				JsonElement value = root.get(location.getKey());
+				if (value != null && value.isJsonPrimitive()) {
+					overrides.put(location, DisplayMode.fromKey(value.getAsString()));
 				}
-			} else {
-				save();
 			}
 		} catch (Exception e) {
-			Nick.LOGGER.error("Failed to load nick client config", e);
+			Nick.LOGGER.error("Failed to load {}", path, e);
 		}
 	}
 
@@ -111,10 +127,7 @@ public class NickClientConfig {
 
 	public static DisplayMode getDisplayMode(DisplayLocation location) {
 		DisplayMode override = overrides.get(location);
-		if (override != null) {
-			return override.resolve(defaultMode);
-		}
-		return defaultMode;
+		return override != null ? override.resolve(defaultMode) : defaultMode;
 	}
 
 	public static DisplayMode getOverride(DisplayLocation location) {
@@ -131,16 +144,17 @@ public class NickClientConfig {
 	}
 
 	public static void save() {
+		Path path = path();
 		try {
-			Files.createDirectories(CONFIG_PATH.getParent());
-			JsonObject obj = new JsonObject();
-			obj.addProperty("default", defaultMode.getKey());
+			JsonObject root = new JsonObject();
+			root.addProperty(DEFAULT_KEY, defaultMode.getKey());
 			for (Map.Entry<DisplayLocation, DisplayMode> entry : overrides.entrySet()) {
-				obj.addProperty(entry.getKey().getKey(), entry.getValue().getKey());
+				root.addProperty(entry.getKey().getKey(), entry.getValue().getKey());
 			}
-			Files.writeString(CONFIG_PATH, GSON.toJson(obj));
+			Files.createDirectories(path.getParent());
+			Files.writeString(path, GSON.toJson(root), StandardCharsets.UTF_8);
 		} catch (Exception e) {
-			Nick.LOGGER.error("Failed to save nick client config", e);
+			Nick.LOGGER.error("Failed to save {}", path, e);
 		}
 	}
 }

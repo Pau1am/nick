@@ -4,12 +4,10 @@
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [
 		"NickCarpetPlayerCommandMixin",
-		"NickEntityMixin",
 		"NickEntitySelectorParserMixin",
 		"NickStringReaderMixin",
 		"NickTabListMixin",
-		"PlayerListMixin",
-		"PlayerMixin"
+		"PlayerListMixin"
 	],
 	"client": [
 		"NickClientChatMixin",
