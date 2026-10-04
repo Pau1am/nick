@@ -41,6 +41,19 @@ dependencies {
 	}
 }
 
+dependencies {
+	testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+	testLogging {
+		events "passed", "skipped", "failed"
+		showStandardStreams = true
+	}
+}
+
 processResources {
 	def version = project.version
 	inputs.property "version", version

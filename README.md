@@ -115,8 +115,19 @@
 - Maven 组：`com.dongchengqiao.nick`
 - 主类：`com.dongchengqiao.nick.Nick`
 
-## 验证脚本
+## 测试
 
-`verify/VerifyCommandTree.java` 用来确认 `/nick` 的命令树能被未安装模组的客户端解析：它调用模组自身的注册代码，用原版编解码器往返一次，再走一遍客户端重建命令树的那段代码。末尾的对照用例故意放入一个客户端无法解析的参数类型，用来证明这个检查真的会失败。
+```
+./gradlew test
+```
 
-运行方式见 `verify/README.md`。
+`./gradlew build` 会一并运行，CI 也是。
+
+| 测试 | 覆盖内容 |
+| --- | --- |
+| `CommandTreeCompatibilityTest` | 命令树里不能出现未安装模组的客户端无法解析的参数类型 |
+| `NickDisplayTextTest` | 三种显示模式的取舍、团队前后缀剥离 |
+| `NickNamesTest` | 昵称长度/字符/格式码规则 |
+| `UnicodeStringsTest` | 中文与引号参数解析 |
+
+`CommandTreeCompatibilityTest` 是其中最重要的一条：服务端会把整棵命令树下发给每个客户端，而参数类型按数字注册表 id 传输。若树里出现模组自定义的参数类型，未安装模组的客户端查不到该 id，参数节点会退化成 `RootCommandNode` 被父节点静默跳过——`/nick set` 整段分支从客户端命令树里消失，补全与语法提示失效，但**不报错、不掉线**。这类问题无法靠人工审查发现，所以它有一个专门的测试；该测试还包含一个反向对照用例，用来证明检查本身确实有效。

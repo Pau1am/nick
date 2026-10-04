@@ -2,15 +2,14 @@ package com.dongchengqiao.nick.mixin;
 
 import com.dongchengqiao.nick.NickClientConfig;
 import com.dongchengqiao.nick.NickClientConfig.DisplayLocation;
-import net.minecraft.client.Minecraft;
+import com.dongchengqiao.nick.NickClientConfig.DisplayMode;
+import com.dongchengqiao.nick.NickClientNames;
+import com.dongchengqiao.nick.NickDisplayText;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundPlayerChatPacket;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.scores.PlayerTeam;
-import net.minecraft.world.scores.Scoreboard;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,6 +19,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.UUID;
 
+/**
+ * Client-side chat override, applying the per-location display mode.
+ * <p>
+ * The server already replaces the sender name with the nickname (see {@code PlayerListMixin}),
+ * so {@code NICK_ONLY} needs no work here. The other modes rebuild the name and have to carry the
+ * server's style over, otherwise chat loses click-to-whisper and the hover player card.
+ */
 @Mixin(ClientPacketListener.class)
 public class NickClientChatMixin {
 	@Unique
@@ -44,57 +50,27 @@ public class NickClientChatMixin {
 		index = 2
 	)
 	private ChatType.Bound nick$modifyChatBound(ChatType.Bound bound) {
-		UUID uuid = this.nick$chatSender;
-		if (uuid == null) return bound;
-
-		PlayerInfo info = ((ClientPacketListener) (Object) this).getPlayerInfo(uuid);
-		if (info == null) return bound;
-
-		String originalName = info.getProfile().name();
-		Component displayName;
-		switch (NickClientConfig.getDisplayMode(DisplayLocation.CHAT)) {
-			case HIDE -> displayName = Component.literal(originalName);
-			case NICK_ONLY -> {
-				String nickname = nick$findNickname(uuid);
-				if (nickname == null) return bound;
-				displayName = Component.literal(nickname);
-			}
-			case NICK_AND_ORIGINAL -> {
-				String nickname = nick$findNickname(uuid);
-				if (nickname == null) return bound;
-				displayName = Component.literal("[" + nickname + "]" + originalName);
-			}
-			default -> {
-				return bound;
-			}
+		UUID senderId = this.nick$chatSender;
+		DisplayMode mode = NickClientConfig.getDisplayMode(DisplayLocation.CHAT);
+		if (senderId == null || mode == DisplayMode.NICK_ONLY) {
+			return bound;
 		}
 
-		PlayerTeam team = nick$getTeamForPlayer(originalName);
+		PlayerInfo info = NickClientNames.infoOf(senderId);
+		String nickname = NickClientNames.nicknameOf(info);
+		if (info == null || nickname == null) {
+			// No nickname in play, so the server left the real name alone and vanilla is correct.
+			return bound;
+		}
+
+		String realName = info.getProfile().name();
+		Component display = NickDisplayText.resolve(mode, realName, nickname)
+			.copy()
+			.withStyle(bound.name().getStyle());
 		return new ChatType.Bound(
 			bound.chatType(),
-			PlayerTeam.formatNameForTeam(team, displayName),
+			NickClientNames.withTeam(NickClientNames.teamOf(realName), display),
 			bound.targetName()
 		);
-	}
-
-	@Unique
-	private static String nick$findNickname(UUID uuid) {
-		Minecraft mc = Minecraft.getInstance();
-		if (mc.level == null) return null;
-		for (Player player : mc.level.players()) {
-			if (player.getUUID().equals(uuid)) {
-				Component customName = player.getCustomName();
-				return customName != null ? customName.getString() : null;
-			}
-		}
-		return null;
-	}
-
-	@Unique
-	private static PlayerTeam nick$getTeamForPlayer(String playerName) {
-		Minecraft mc = Minecraft.getInstance();
-		if (mc.level == null) return null;
-		Scoreboard scoreboard = mc.level.getScoreboard();
-		return scoreboard.getPlayersTeam(playerName);
 	}
 }

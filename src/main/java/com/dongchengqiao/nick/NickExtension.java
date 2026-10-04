@@ -9,6 +9,7 @@ import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class NickExtension implements CarpetExtension {
@@ -45,48 +46,55 @@ public class NickExtension implements CarpetExtension {
 	public Map<String, String> canHasTranslations(String lang) {
 		return switch (lang) {
 			case "zh_cn" -> rules(
-				"昵称命令", "启用或禁用 /nick 命令",
-				"/player支持中文", "启用后 /player 命令可使用中文玩家名",
-				"禁止非标准名称假人生成", "启用后 /player xxx spawn 拒绝含非字母、数字和下划线的名称");
+				new RuleText("昵称命令", "启用或禁用 /nick 命令"),
+				new RuleText("/player支持中文", "启用后 /player 命令可使用中文玩家名"),
+				new RuleText("禁止非 ASCII 名称假人生成", "启用后 /player xxx spawn 拒绝含非 ASCII 字符的名称"));
 			case "zh_tw" -> rules(
-				"暱稱指令", "啟用或停用 /nick 指令",
-				"/player支援中文", "啟用後 /player 指令可使用中文玩家名",
-				"禁止非標準名稱假人生成", "啟用後 /player xxx spawn 拒絕含非字母、數字和底線的名稱");
+				new RuleText("暱稱指令", "啟用或停用 /nick 指令"),
+				new RuleText("/player支援中文", "啟用後 /player 指令可使用中文玩家名"),
+				new RuleText("禁止非 ASCII 名稱假人生成", "啟用後 /player xxx spawn 拒絕含非 ASCII 字元的名稱"));
 			case "es_ar" -> rules(
-				"Comando Nick", "Activar o desactivar el comando /nick",
-				"/player Soporte Chino", "Permite nombres chinos en /player",
-				"No Fake Player no Estándar", "Evita /player xxx spawn con nombres que contengan caracteres no alfanuméricos (excepto guión bajo)");
+				new RuleText("Comando Nick", "Activar o desactivar el comando /nick"),
+				new RuleText("/player Soporte Chino", "Permite nombres chinos en /player"),
+				new RuleText("Sin Fake Player no ASCII", "Evita /player xxx spawn con nombres que contengan caracteres no ASCII"));
 			case "fr_fr" -> rules(
-				"Commande Nick", "Activer ou désactiver la commande /nick",
-				"/player Support Chinois", "Permet les noms chinois dans /player",
-				"Pas de PNJ non standard", "Empêche /player xxx spawn avec des noms contenant des caractères non alphanumériques (sauf trait de soulignement)");
+				new RuleText("Commande Nick", "Activer ou désactiver la commande /nick"),
+				new RuleText("/player Support Chinois", "Permet les noms chinois dans /player"),
+				new RuleText("Pas de PNJ non ASCII", "Empêche /player xxx spawn avec des noms contenant des caractères non ASCII"));
 			case "pt_br" -> rules(
-				"Comando Nick", "Ativar ou desativar o comando /nick",
-				"/player Suporte Chinês", "Permite nomes chineses em /player",
-				"Sem Fake Player não Padrão", "Impede /player xxx spawn com nomes contendo caracteres não alfanuméricos (exceto sublinhado)");
+				new RuleText("Comando Nick", "Ativar ou desativar o comando /nick"),
+				new RuleText("/player Suporte Chinês", "Permite nomes chineses em /player"),
+				new RuleText("Sem Fake Player não ASCII", "Impede /player xxx spawn com nomes contendo caracteres não ASCII"));
 			default -> rules(
-				"Nick Command", "Enable or disable the /nick command",
-				"/player Chinese Support", "Allows Chinese player names in /player command",
-				"No Non-Standard Fake Player Spawn", "Prevents /player xxx spawn with names containing non-alphanumeric characters (except underscores)");
+				new RuleText("Nick Command", "Enable or disable the /nick command"),
+				new RuleText("/player Chinese Support", "Allows Chinese player names in /player command"),
+				new RuleText("No Non-ASCII Fake Player Spawn", "Prevents /player xxx spawn with names containing non-ASCII characters"));
 		};
 	}
 
-	/** Builds the Carpet rule translations; {@code desc} doubles as Carpet's {@code extra} text. */
-	private static Map<String, String> rules(String nickName, String nickDesc,
-											 String cnName, String cnDesc,
-											 String noSpawnName, String noSpawnDesc) {
-		return Map.ofEntries(
-			Map.entry("carpet.category.NICK", "Nick"),
-			Map.entry("carpet.rule.commandNick.name", nickName),
-			Map.entry("carpet.rule.commandNick.desc", nickDesc),
-			Map.entry("carpet.rule.commandNick.extra", nickDesc),
-			Map.entry("carpet.rule.commandPlayerCN.name", cnName),
-			Map.entry("carpet.rule.commandPlayerCN.desc", cnDesc),
-			Map.entry("carpet.rule.commandPlayerCN.extra", cnDesc),
-			Map.entry("carpet.rule.commandPlayerCNNoSpawn.name", noSpawnName),
-			Map.entry("carpet.rule.commandPlayerCNNoSpawn.desc", noSpawnDesc),
-			Map.entry("carpet.rule.commandPlayerCNNoSpawn.extra", noSpawnDesc)
-		);
+	private record RuleText(String name, String description) {
+	}
+
+	/**
+	 * Builds the Carpet rule translations for the three rules this extension adds. Takes the rules
+	 * as named values rather than as six positional strings - with six, a caller could silently swap
+	 * a name with a description, and {@code Map} would happily accept the result.
+	 * <p>
+	 * The description doubles as Carpet's {@code extra} text.
+	 */
+	private static Map<String, String> rules(RuleText nick, RuleText chineseSupport, RuleText noNonAsciiSpawn) {
+		Map<String, String> translations = new LinkedHashMap<>();
+		translations.put("carpet.category.NICK", "Nick");
+		addRule(translations, "commandNick", nick);
+		addRule(translations, "commandPlayerCN", chineseSupport);
+		addRule(translations, "commandPlayerCNNoSpawn", noNonAsciiSpawn);
+		return translations;
+	}
+
+	private static void addRule(Map<String, String> translations, String rule, RuleText text) {
+		translations.put("carpet.rule." + rule + ".name", text.name());
+		translations.put("carpet.rule." + rule + ".desc", text.description());
+		translations.put("carpet.rule." + rule + ".extra", text.description());
 	}
 
 	@Override

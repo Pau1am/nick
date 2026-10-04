@@ -95,6 +95,30 @@ Keys are game names (not nicknames); the file is replaced atomically to avoid co
 
 ---
 
+## Tests
+
+```
+./gradlew test
+```
+
+Also runs as part of `./gradlew build`, and in CI.
+
+| Test | Covers |
+| --- | --- |
+| `CommandTreeCompatibilityTest` | the command tree must not contain an argument type a client without the mod cannot resolve |
+| `NickDisplayTextTest` | the three display modes, and stripping team decoration |
+| `NickNamesTest` | nickname length, character and formatting-code rules |
+| `UnicodeStringsTest` | unquoted CJK and quoted argument parsing |
+
+`CommandTreeCompatibilityTest` is the important one. The server pushes its whole command tree to
+every client and argument types travel as numeric registry ids; a mod-provided type is unknown to a
+client without the mod, the node degrades into a `RootCommandNode` that its parent silently skips,
+and the whole `/nick set` branch vanishes from that client's tree - no error, no disconnect, just
+missing completion and syntax hints. Nobody spots that by reading code, so it has a test, and that
+test carries a negative control to prove it can actually fail.
+
+---
+
 ## 技术信息 / Technical Info
 
 - Minecraft 版本 Version: 26.3
