@@ -20,5 +20,8 @@
 	"nick.config.category.display": "Display Settings",
 	"nick.config.description.selector_note": "§7Target selectors are not affected by client settings",
 	"nick.config.default_mode": "Default Display Mode",
-	"nick.config.location_settings": "Location Display Settings"
+	"nick.config.location_settings": "Location Display Settings",
+	"nick.nickname_released": "Your nickname was reset because %s joined the server",
+	"nick.nickname_released.hint": "Use /nick set <nickname> to pick a different one",
+	"nick.nickname_dropped": "Your nickname '%s' was removed because that name is now in use"
 }

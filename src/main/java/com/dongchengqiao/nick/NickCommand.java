@@ -1,6 +1,7 @@
 package com.dongchengqiao.nick;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.commands.CommandSourceStack;
@@ -11,15 +12,12 @@ import net.minecraft.server.level.ServerPlayer;
 import static net.minecraft.commands.Commands.*;
 
 public final class NickCommand {
-	/** Vanilla caps player names at 16 chars; give nicknames a bit more room but not unlimited. */
-	private static final int MAX_NICK_LENGTH = 32;
-
 	private static final SimpleCommandExceptionType ERROR_EMPTY =
 		new SimpleCommandExceptionType(Component.translatableWithFallback(
 			"nick.error.empty", "Nickname cannot be empty"));
 	private static final SimpleCommandExceptionType ERROR_TOO_LONG =
 		new SimpleCommandExceptionType(Component.translatableWithFallback(
-			"nick.error.too_long", "Nickname is too long (max %s characters)", MAX_NICK_LENGTH));
+			"nick.error.too_long", "Nickname is too long (max %s characters)", NickNames.MAX_LENGTH));
 	private static final SimpleCommandExceptionType ERROR_INVALID =
 		new SimpleCommandExceptionType(Component.translatableWithFallback(
 			"nick.error.invalid", "Nickname contains invalid characters"));
@@ -31,10 +29,18 @@ public final class NickCommand {
 	}
 
 	public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
+		// The nickname argument deliberately uses vanilla's StringArgumentType instead of a custom
+		// argument type. The server sends its command tree to every client, and a client that does
+		// not have this mod cannot resolve a mod-provided argument type: ClientboundCommandsPacket
+		// writes the type as a numeric registry id, the client's lookup returns null, the node
+		// degrades into a RootCommandNode, and brigadier's CommandNode#addChild throws
+		// "Cannot add a RootCommandNode as a child to any other CommandNode" - which disconnects
+		// every vanilla client as soon as the tree is pushed. StringArgumentType also gives us
+		// quoted-string parsing for free.
 		dispatcher.register(literal("nick")
 			.requires(source -> NickSettings.commandNick)
 			.then(literal("set")
-				.then(argument("name", UnicodeWordArgumentType.unicodeWord())
+				.then(argument("name", StringArgumentType.string())
 					.executes(ctx -> {
 						ServerPlayer player = ctx.getSource().getPlayerOrException();
 						String nick = validate(ctx.getSource(), player, ctx.getArgument("name", String.class));
@@ -86,25 +92,13 @@ public final class NickCommand {
 		if (nick.isEmpty()) {
 			throw ERROR_EMPTY.create();
 		}
-		if (nick.length() > MAX_NICK_LENGTH) {
+		if (nick.length() > NickNames.MAX_LENGTH) {
 			throw ERROR_TOO_LONG.create();
 		}
-		for (int i = 0; i < nick.length(); i++) {
-			char c = nick.charAt(i);
-			// '§' would inject colour/format codes, control chars would break chat and the tab list.
-			if (c == '\u00a7' || c < 0x20 || c == 0x7f) {
-				throw ERROR_INVALID.create();
-			}
+		if (NickNames.isMalformed(nick)) {
+			throw ERROR_INVALID.create();
 		}
-
-		String targetName = target.getGameProfile().name();
-		for (ServerPlayer online : source.getServer().getPlayerList().getPlayers()) {
-			if (online != target && online.getGameProfile().name().equalsIgnoreCase(nick)) {
-				throw ERROR_TAKEN.create();
-			}
-		}
-		String owner = NickConfig.findOwner(nick);
-		if (owner != null && !owner.equals(targetName)) {
+		if (NickNames.isTaken(source.getServer(), target, nick)) {
 			throw ERROR_TAKEN.create();
 		}
 		return nick;

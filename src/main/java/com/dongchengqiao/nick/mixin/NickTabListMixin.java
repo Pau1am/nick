@@ -22,6 +22,6 @@ public abstract class NickTabListMixin {
 		if (customName == null) {
 			return;
 		}
-		cir.setReturnValue(NickDisplay.decorate(self, customName));
+		cir.setReturnValue(NickDisplay.formatPlain(self, customName));
 	}
 }

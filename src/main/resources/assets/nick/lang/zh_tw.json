@@ -20,5 +20,8 @@
 	"nick.config.category.display": "顯示設定",
 	"nick.config.description.selector_note": "§7目標選擇器（如@e[name=...]）不會跟隨客戶端設定而更改",
 	"nick.config.default_mode": "預設顯示模式",
-	"nick.config.location_settings": "位置顯示設定"
+	"nick.config.location_settings": "位置顯示設定",
+	"nick.nickname_released": "你的暱稱已被重設，因為 %s 加入了伺服器",
+	"nick.nickname_released.hint": "可用 /nick set <暱稱> 換一個",
+	"nick.nickname_dropped": "你的暱稱 '%s' 已被移除，該名稱現在已被佔用"
 }

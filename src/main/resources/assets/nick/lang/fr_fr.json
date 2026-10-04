@@ -20,5 +20,8 @@
 	"nick.config.category.display": "Paramètres d'affichage",
 	"nick.config.description.selector_note": "§7Les sélecteurs de cible (ex: @e[name=...]) ne sont pas affectés par les paramètres clients",
 	"nick.config.default_mode": "Mode d'affichage par défaut",
-	"nick.config.location_settings": "Paramètres d'affichage par emplacement"
+	"nick.config.location_settings": "Paramètres d'affichage par emplacement",
+	"nick.nickname_released": "Votre pseudo a été réinitialisé car %s a rejoint le serveur",
+	"nick.nickname_released.hint": "Utilisez /nick set <pseudo> pour en choisir un autre",
+	"nick.nickname_dropped": "Votre pseudo '%s' a été supprimé car ce nom est désormais utilisé"
 }

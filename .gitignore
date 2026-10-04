@@ -32,9 +32,19 @@ bin/
 
 run/
 
+# logs written when a game process is started from the project root
+
+logs/
+
 # java
 
 hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# verify/ local build output (the source and README are tracked)
+
+verify/classes/
+verify/classpath.txt
+verify/result-*.txt

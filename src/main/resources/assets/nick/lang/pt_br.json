@@ -20,5 +20,8 @@
 	"nick.config.category.display": "Configurações de exibição",
 	"nick.config.description.selector_note": "§7Seletores de alvo (ex: @e[name=...]) não são afetados pelas configurações do cliente",
 	"nick.config.default_mode": "Modo de exibição padrão",
-	"nick.config.location_settings": "Configurações de exibição por local"
+	"nick.config.location_settings": "Configurações de exibição por local",
+	"nick.nickname_released": "Seu apelido foi redefinido porque %s entrou no servidor",
+	"nick.nickname_released.hint": "Use /nick set <apelido> para escolher outro",
+	"nick.nickname_dropped": "Seu apelido '%s' foi removido porque esse nome agora está em uso"
 }

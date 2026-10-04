@@ -4,6 +4,7 @@ import carpet.CarpetExtension;
 import carpet.CarpetServer;
 import carpet.api.settings.SettingsManager;
 import com.mojang.brigadier.CommandDispatcher;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
@@ -90,6 +91,10 @@ public class NickExtension implements CarpetExtension {
 
 	@Override
 	public String version() {
-		return "nick";
+		// Carpet prints this in its startup log; report the real mod version instead of the mod id.
+		return FabricLoader.getInstance()
+			.getModContainer("nick")
+			.map(container -> container.getMetadata().getVersion().getFriendlyString())
+			.orElse("unknown");
 	}
 }

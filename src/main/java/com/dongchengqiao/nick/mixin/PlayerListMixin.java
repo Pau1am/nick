@@ -26,9 +26,14 @@ public class PlayerListMixin {
 	private List<ServerPlayer> players;
 
 	/**
-	 * The sender of the message currently being broadcast. It is written at the head of the
-	 * broadcast method and only read by the injection below, which can never run before that
-	 * write, so a plain field is enough - no ThreadLocal needed.
+	 * The sender of the message currently being broadcast.
+	 * <p>
+	 * A plain field is safe here: chat is delivered through {@code FutureChain(MinecraftServer)},
+	 * which runs each queued task on the server thread (verified against the 26.3 sources -
+	 * {@code FutureChain#append} uses {@code thenAcceptAsync(task, executor)} with the server as
+	 * executor), so the write below and the read in the injection always happen on one thread and
+	 * cannot interleave. The write also always happens first, because the injection only runs
+	 * inside the method body the write sits at the head of.
 	 */
 	@Unique
 	private static ServerPlayer nick$currentSender;
@@ -89,6 +94,6 @@ public class PlayerListMixin {
 		if (customName == null) {
 			return bound;
 		}
-		return new ChatType.Bound(bound.chatType(), NickDisplay.decorate(sender, customName), bound.targetName());
+		return new ChatType.Bound(bound.chatType(), NickDisplay.formatForChat(sender, customName), bound.targetName());
 	}
 }

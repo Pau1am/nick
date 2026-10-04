@@ -20,5 +20,8 @@
 	"nick.config.category.display": "Configuración de pantalla",
 	"nick.config.description.selector_note": "§7Los selectores de objetivo (ej. @e[name=...]) no se ven afectados por la configuración del cliente",
 	"nick.config.default_mode": "Modo de pantalla predeterminado",
-	"nick.config.location_settings": "Configuración de pantalla por ubicación"
+	"nick.config.location_settings": "Configuración de pantalla por ubicación",
+	"nick.nickname_released": "Tu nick se ha restablecido porque %s se ha unido al servidor",
+	"nick.nickname_released.hint": "Usa /nick set <nick> para elegir otro",
+	"nick.nickname_dropped": "Tu nick '%s' se ha eliminado porque ese nombre ya está en uso"
 }

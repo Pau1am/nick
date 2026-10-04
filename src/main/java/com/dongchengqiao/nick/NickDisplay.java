@@ -10,8 +10,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.scores.PlayerTeam;
 
 /**
- * Pushes a nickname (or the real name again) to every client, and builds display names that
- * keep vanilla's team colour/prefix/suffix and click/hover decoration.
+ * Pushes a nickname (or the real name again) to every client, and builds the display names used
+ * where vanilla would otherwise render the real profile name.
  */
 public final class NickDisplay {
 	private NickDisplay() {
@@ -43,19 +43,29 @@ public final class NickDisplay {
 	}
 
 	/**
-	 * Team formatting plus the click/hover behaviour vanilla puts on player display names.
+	 * Team colour/prefix/suffix only.
 	 * <p>
-	 * {@code Player#getName()} ignores the custom name, so vanilla never renders a nickname from
-	 * it and every display path has to be patched explicitly - and has to add this decoration back,
-	 * otherwise chat loses click-to-whisper and the hover player card.
+	 * This mirrors what vanilla produces for a tab list entry, where
+	 * {@code ServerPlayer#getTabListDisplayName()} is {@code null} and the client formats the plain
+	 * profile name with the team. Adding click/hover decoration here would be a deviation vanilla
+	 * never has.
 	 */
-	public static MutableComponent decorate(ServerPlayer player, Component name) {
-		MutableComponent formatted = PlayerTeam.formatNameForTeam(player.getTeam(), name);
-		String realName = player.getGameProfile().name();
-		return formatted.withStyle(style -> style
-			.withClickEvent(new ClickEvent.SuggestCommand("/tell " + realName + " "))
+	public static MutableComponent formatPlain(ServerPlayer player, Component name) {
+		return PlayerTeam.formatNameForTeam(player.getTeam(), name);
+	}
+
+	/**
+	 * Team formatting plus the click/hover/insertion decoration vanilla puts on display names.
+	 * <p>
+	 * {@code Player#getName()} returns the real profile name and ignores the custom name, so vanilla
+	 * never renders a nickname from it and every display path has to be patched explicitly - and has
+	 * to add this decoration back, otherwise chat loses click-to-whisper and the hover player card.
+	 */
+	public static MutableComponent formatForChat(ServerPlayer player, Component name) {
+		return formatPlain(player, name).withStyle(style -> style
+			.withClickEvent(new ClickEvent.SuggestCommand("/tell " + player.getGameProfile().name() + " "))
 			.withHoverEvent(new HoverEvent.ShowEntity(new HoverEvent.EntityTooltipInfo(
-				player.getType(), player.getUUID(), Component.literal(realName))))
-			.withInsertion(realName));
+				player.getType(), player.getUUID(), Component.literal(player.getGameProfile().name()))))
+			.withInsertion(player.getGameProfile().name()));
 	}
 }

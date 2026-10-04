@@ -20,5 +20,8 @@
 	"nick.config.category.display": "显示设置",
 	"nick.config.description.selector_note": "§7目标选择器不会跟随客户端设置而更改",
 	"nick.config.default_mode": "默认显示模式",
-	"nick.config.location_settings": "位置显示设置"
+	"nick.config.location_settings": "位置显示设置",
+	"nick.nickname_released": "你的昵称已被重置，因为 %s 加入了服务器",
+	"nick.nickname_released.hint": "可用 /nick set <昵称> 换一个",
+	"nick.nickname_dropped": "你的昵称 '%s' 已被移除，该名称现在已被占用"
 }
